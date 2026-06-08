@@ -1,0 +1,18 @@
+# Next.js
+licitacao-app/.next/
+licitacao-app/node_modules/
+licitacao-app/.env.local
+
+# Python
+backend/venv/
+backend/__pycache__/
+backend/*.pyc
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Excel files de teste
+*.xlsx
+*.xls
+*.xlsm
