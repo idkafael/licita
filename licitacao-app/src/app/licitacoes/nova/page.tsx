@@ -81,7 +81,7 @@ export default function NovaLicitacaoPage() {
   })
   const [previewAtivo, setPreviewAtivo] = useState<string | null>(null)
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({})
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+  const apiUrl = ''  // Usa rotas internas Next.js (/api/processar, /api/preview)
 
   useEffect(() => {
     // Auth desativado temporariamente para testes
@@ -113,7 +113,7 @@ export default function NovaLicitacaoPage() {
     form.append('percentual', p.percentual)
 
     try {
-      const res = await fetch(`${apiUrl}/preview`, { method: 'POST', body: form })
+      const res = await fetch(`${apiUrl}/api/preview`, { method: 'POST', body: form })
       if (!res.ok) throw new Error('Erro ao gerar preview')
       const dados: PreviewData = await res.json()
       atualizarPlanilha(key, { preview: dados, processando: false })
@@ -152,7 +152,7 @@ export default function NovaLicitacaoPage() {
       form.append('percentual', p.percentual)
 
       try {
-        const res = await fetch(`${apiUrl}/processar`, { method: 'POST', body: form })
+        const res = await fetch(`${apiUrl}/api/processar`, { method: 'POST', body: form })
         if (!res.ok) throw new Error('Erro ao processar')
 
         const blob = await res.blob()
