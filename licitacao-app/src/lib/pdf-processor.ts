@@ -5,6 +5,7 @@
  */
 
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
+import { setupPDFPolyfills } from './pdf-polyfills'
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -68,6 +69,9 @@ function arredondar(v: number): number {
 // ─── Extração de texto via pdfjs-dist ────────────────────────────────────────
 
 async function extrairTextoComPosicoes(buffer: Buffer): Promise<DadosPagina[]> {
+  // Polyfills obrigatórios ANTES do import do pdfjs-dist no Node.js/Vercel
+  setupPDFPolyfills()
+
   // Dynamic import — usa o build legacy/ESM do pdfjs-dist
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pdfjsLib: any = await import('pdfjs-dist/legacy/build/pdf.mjs')
