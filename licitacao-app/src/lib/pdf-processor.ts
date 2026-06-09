@@ -72,19 +72,38 @@ async function extrairTextoComPosicoes(buffer: Buffer): Promise<DadosPagina[]> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pdfjsLib: any = await import('pdfjs-dist/legacy/build/pdf.mjs')
   const { pathToFileURL } = await import('url')
-  const { createRequire } = await import('module')
 
-  // Resolver o caminho do worker via createRequire — funciona em local e no Vercel
-  try {
-    const _require = createRequire(import.meta.url)
-    const workerPath = _require.resolve('pdfjs-dist/legacy/build/pdf.worker.mjs')
-    pdfjsLib.GlobalWorkerOptions.workerSrc = pathToFileURL(workerPath).href
-  } catch {
-    // Fallback: usar process.cwd()
-    const { join } = await import('path')
-    const workerPath = join(process.cwd(), 'node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs')
-    pdfjsLib.GlobalWorkerOptions.workerSrc = pathToFileURL(workerPath).href
+  // Estratégia: usar o worker copiado em public/ — sempre incluído no Vercel
+  // Fallbacks em ordem de prioridade
+  const { join } = await import('path')
+  const { existsSync } = await import('fs')
+
+  const candidatos = [
+    join(process.cwd(), 'public/pdf.worker.mjs'),                          // public/ (Vercel + local)
+    join(process.cwd(), 'node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs'), // node_modules local
+    '/var/task/public/pdf.worker.mjs',                                     // path absoluto Vercel
+  ]
+
+  let workerResolvido = ''
+  for (const caminho of candidatos) {
+    if (existsSync(caminho)) {
+      workerResolvido = pathToFileURL(caminho).href
+      break
+    }
   }
+
+  if (!workerResolvido) {
+    // Último recurso: createRequire
+    try {
+      const { createRequire } = await import('module')
+      const _require = createRequire(import.meta.url)
+      workerResolvido = pathToFileURL(_require.resolve('pdfjs-dist/legacy/build/pdf.worker.mjs')).href
+    } catch {
+      throw new Error('Não foi possível localizar o worker do pdfjs-dist')
+    }
+  }
+
+  pdfjsLib.GlobalWorkerOptions.workerSrc = workerResolvido
 
   const loadingTask = pdfjsLib.getDocument({
     data: new Uint8Array(buffer),
