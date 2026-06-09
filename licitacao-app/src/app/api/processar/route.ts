@@ -55,9 +55,9 @@ export async function POST(request: NextRequest) {
     // Excel
     const tiposValidos = ['licitacao', 'orcamento_resumido', 'cpu', 'cronograma']
     const tipoExcel = tiposValidos.includes(tipo) ? tipo : 'licitacao'
-    const resultado = processarPlanilha(buffer, tipoExcel, percentual)
+    const resultado = await processarPlanilha(buffer, tipoExcel, percentual)
 
-    return new NextResponse(resultado.buffer as ArrayBuffer, {
+    return new NextResponse(new Uint8Array(resultado), {
       status: 200,
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
