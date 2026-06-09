@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { previewPlanilha } from '@/lib/processor'
+import { previewPDF } from '@/lib/pdf-processor'
+
+export const maxDuration = 60
+
+function detectarTipo(filename: string): 'pdf' | 'excel' {
+  return filename.toLowerCase().endsWith('.pdf') ? 'pdf' : 'excel'
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -8,8 +15,8 @@ export async function POST(request: NextRequest) {
     const tipo = formData.get('tipo') as string | null
     const percentualStr = formData.get('percentual') as string | null
 
-    if (!arquivo || !tipo || !percentualStr) {
-      return NextResponse.json({ error: 'Parâmetros obrigatórios: arquivo, tipo, percentual' }, { status: 400 })
+    if (!arquivo || !percentualStr) {
+      return NextResponse.json({ error: 'Parâmetros obrigatórios: arquivo, percentual' }, { status: 400 })
     }
 
     const percentual = parseFloat(percentualStr)
@@ -19,8 +26,17 @@ export async function POST(request: NextRequest) {
 
     const arrayBuffer = await arquivo.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
-    const resultado = previewPlanilha(buffer, tipo, percentual)
+    const tipoArquivo = detectarTipo(arquivo.name)
 
+    if (tipoArquivo === 'pdf') {
+      const resultado = await previewPDF(buffer, percentual)
+      return NextResponse.json(resultado)
+    }
+
+    // Excel
+    const tiposValidos = ['licitacao', 'orcamento_resumido', 'cpu', 'cronograma']
+    const tipoExcel = tipo && tiposValidos.includes(tipo) ? tipo : 'licitacao'
+    const resultado = previewPlanilha(buffer, tipoExcel, percentual)
     return NextResponse.json(resultado)
   } catch (error) {
     console.error('Erro ao gerar preview:', error)
