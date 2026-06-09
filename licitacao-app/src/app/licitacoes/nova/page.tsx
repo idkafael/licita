@@ -107,13 +107,14 @@ export default function NovaLicitacaoPage() {
     atualizarPlanilha(key, { processando: true, erro: '' })
     setPreviewAtivo(key)
 
-    const form = new FormData()
-    form.append('arquivo', p.arquivo)
-    form.append('tipo', key)
-    form.append('percentual', p.percentual)
-
+    // Envia o arquivo como binary direto (sem FormData) para evitar limite de 1MB do parser multipart
+    const params = new URLSearchParams({ percentual: p.percentual, tipo: key, filename: p.arquivo.name })
     try {
-      const res = await fetch(`${apiUrl}/api/preview`, { method: 'POST', body: form })
+      const res = await fetch(`/api/preview?${params}`, {
+        method: 'POST',
+        body: p.arquivo,
+        headers: { 'Content-Type': p.arquivo.type || 'application/octet-stream' },
+      })
       if (!res.ok) throw new Error('Erro ao gerar preview')
       const dados: PreviewData = await res.json()
       atualizarPlanilha(key, { preview: dados, processando: false })
@@ -146,13 +147,15 @@ export default function NovaLicitacaoPage() {
 
       atualizarPlanilha(tipo.key, { processando: true, erro: '' })
 
-      const form = new FormData()
-      form.append('arquivo', p.arquivo)
-      form.append('tipo', tipo.key)
-      form.append('percentual', p.percentual)
+      // Envia o arquivo como binary direto (sem FormData) para evitar limite de 1MB do parser multipart
+      const params = new URLSearchParams({ percentual: p.percentual!, tipo: tipo.key, filename: p.arquivo!.name })
 
       try {
-        const res = await fetch(`${apiUrl}/api/processar`, { method: 'POST', body: form })
+        const res = await fetch(`/api/processar?${params}`, {
+          method: 'POST',
+          body: p.arquivo,
+          headers: { 'Content-Type': p.arquivo!.type || 'application/octet-stream' },
+        })
         if (!res.ok) throw new Error('Erro ao processar')
 
         const blob = await res.blob()

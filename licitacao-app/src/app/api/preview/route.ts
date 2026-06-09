@@ -10,13 +10,14 @@ function detectarTipo(filename: string): 'pdf' | 'excel' {
 
 export async function POST(request: NextRequest) {
   try {
-    const formData = await request.formData()
-    const arquivo = formData.get('arquivo') as File | null
-    const tipo = formData.get('tipo') as string | null
-    const percentualStr = formData.get('percentual') as string | null
+    // Lê parâmetros da query string (evita o parser multipart que tem limite de 1MB)
+    const { searchParams } = new URL(request.url)
+    const filename      = searchParams.get('filename')    ?? 'arquivo'
+    const percentualStr = searchParams.get('percentual')
+    const tipo          = searchParams.get('tipo')        ?? 'licitacao'
 
-    if (!arquivo || !percentualStr) {
-      return NextResponse.json({ error: 'Parâmetros obrigatórios: arquivo, percentual' }, { status: 400 })
+    if (!percentualStr) {
+      return NextResponse.json({ error: 'Parâmetro obrigatório: percentual' }, { status: 400 })
     }
 
     const percentual = parseFloat(percentualStr)
@@ -24,9 +25,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Percentual deve ser entre 0 e 100' }, { status: 400 })
     }
 
-    const arrayBuffer = await arquivo.arrayBuffer()
+    // Lê o corpo como binary puro — sem parser multipart, sem limite
+    const arrayBuffer = await request.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
-    const tipoArquivo = detectarTipo(arquivo.name)
+    const tipoArquivo = detectarTipo(filename)
 
     if (tipoArquivo === 'pdf') {
       const resultado = await previewPDF(buffer, percentual)
@@ -35,7 +37,7 @@ export async function POST(request: NextRequest) {
 
     // Excel
     const tiposValidos = ['licitacao', 'orcamento_resumido', 'cpu', 'cronograma']
-    const tipoExcel = tipo && tiposValidos.includes(tipo) ? tipo : 'licitacao'
+    const tipoExcel = tiposValidos.includes(tipo) ? tipo : 'licitacao'
     const resultado = previewPlanilha(buffer, tipoExcel, percentual)
     return NextResponse.json(resultado)
   } catch (error) {
