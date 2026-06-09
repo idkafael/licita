@@ -163,7 +163,8 @@ export default function NovaLicitacaoPage() {
         const url = URL.createObjectURL(blob)
         const a = document.createElement('a')
         a.href = url
-        a.download = `${tipo.label}_reduzida_${p.percentual}pct.xlsx`
+        const ext = p.arquivo!.name.split('.').pop()?.toLowerCase() || 'xlsx'
+        a.download = `${tipo.label}_reduzida_${p.percentual}pct.${ext}`
         a.click()
         URL.revokeObjectURL(url)
 
@@ -310,7 +311,7 @@ export default function NovaLicitacaoPage() {
                       <input
                         ref={el => { inputRefs.current[tipo.key] = el }}
                         type="file"
-                        accept=".xlsx,.xls,.xlsm"
+                        accept=".xlsx,.xls,.xlsm,.pdf"
                         onChange={e => onArquivoSelecionado(tipo.key, e)}
                         style={{ display: 'none' }}
                       />

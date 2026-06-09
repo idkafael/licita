@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 import uvicorn
 from processor import processar_planilha, preview_planilha
+from pdf_processor import processar_pdf, preview_pdf
 
 app = FastAPI(title="Licitação API", version="1.0.0")
 
@@ -13,6 +14,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+EXTENSOES_EXCEL = {'xlsx', 'xls', 'xlsm'}
+EXTENSOES_PDF = {'pdf'}
+
+
+def detectar_tipo_arquivo(filename: str) -> str:
+    ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+    if ext in EXTENSOES_PDF:
+        return 'pdf'
+    if ext in EXTENSOES_EXCEL:
+        return 'excel'
+    return 'desconhecido'
 
 
 @app.get("/")
@@ -27,29 +40,37 @@ async def processar(
     percentual: float = Form(...)
 ):
     """
-    Processa a planilha aplicando a redução percentual.
-    Retorna o arquivo Excel modificado.
+    Processa o arquivo (Excel ou PDF) aplicando a redução percentual.
+    Retorna o mesmo formato do arquivo de entrada.
     """
     if percentual <= 0 or percentual >= 100:
         raise HTTPException(status_code=400, detail="Percentual deve ser entre 0 e 100")
 
-    tipos_validos = ['licitacao', 'orcamento_resumido', 'cpu', 'cronograma']
-    if tipo not in tipos_validos:
-        raise HTTPException(status_code=400, detail=f"Tipo inválido. Use: {tipos_validos}")
+    nome_original = arquivo.filename or "arquivo"
+    tipo_arquivo = detectar_tipo_arquivo(nome_original)
+
+    if tipo_arquivo == 'desconhecido':
+        raise HTTPException(status_code=400, detail="Formato não suportado. Use Excel (.xlsx, .xls, .xlsm) ou PDF (.pdf)")
 
     conteudo = await arquivo.read()
-    resultado = processar_planilha(conteudo, tipo, percentual)
-
-    nome_original = arquivo.filename or "planilha.xlsx"
     nome_sem_ext = nome_original.rsplit('.', 1)[0]
-    extensao = nome_original.rsplit('.', 1)[-1] if '.' in nome_original else 'xlsx'
-    nome_saida = f"{nome_sem_ext}_reduzido_{percentual}pct.{extensao}"
+    extensao = nome_original.rsplit('.', 1)[-1].lower()
 
-    content_type = (
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        if extensao == "xlsx"
-        else "application/vnd.ms-excel.sheet.macroEnabled.12"
-    )
+    if tipo_arquivo == 'pdf':
+        resultado = processar_pdf(conteudo, percentual)
+        nome_saida = f"{nome_sem_ext}_reduzido_{percentual}pct.pdf"
+        content_type = "application/pdf"
+    else:
+        tipos_validos = ['licitacao', 'orcamento_resumido', 'cpu', 'cronograma']
+        if tipo not in tipos_validos:
+            raise HTTPException(status_code=400, detail=f"Tipo inválido para Excel. Use: {tipos_validos}")
+        resultado = processar_planilha(conteudo, tipo, percentual)
+        nome_saida = f"{nome_sem_ext}_reduzido_{percentual}pct.{extensao}"
+        content_type = (
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            if extensao == "xlsx"
+            else "application/vnd.ms-excel.sheet.macroEnabled.12"
+        )
 
     return Response(
         content=resultado,
@@ -65,13 +86,21 @@ async def preview(
     percentual: float = Form(...)
 ):
     """
-    Gera preview das alterações sem salvar o arquivo.
+    Gera preview das alterações sem modificar o arquivo.
+    Suporta Excel e PDF.
     """
     if percentual <= 0 or percentual >= 100:
         raise HTTPException(status_code=400, detail="Percentual deve ser entre 0 e 100")
 
+    nome_original = arquivo.filename or "arquivo"
+    tipo_arquivo = detectar_tipo_arquivo(nome_original)
     conteudo = await arquivo.read()
-    resultado = preview_planilha(conteudo, tipo, percentual)
+
+    if tipo_arquivo == 'pdf':
+        resultado = preview_pdf(conteudo, percentual)
+    else:
+        resultado = preview_planilha(conteudo, tipo, percentual)
+
     return resultado
 
 
