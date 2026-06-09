@@ -71,9 +71,12 @@ async function extrairTextoComPosicoes(buffer: Buffer): Promise<DadosPagina[]> {
   // Dynamic import — usa o build legacy/ESM do pdfjs-dist
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pdfjsLib: any = await import('pdfjs-dist/legacy/build/pdf.mjs')
+  const { join } = await import('path')
+  const { pathToFileURL } = await import('url')
 
-  // Desabilitar worker no ambiente Node.js
-  pdfjsLib.GlobalWorkerOptions.workerSrc = ''
+  // Apontar para o worker real — obrigatório no Node.js
+  const workerPath = join(process.cwd(), 'node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs')
+  pdfjsLib.GlobalWorkerOptions.workerSrc = pathToFileURL(workerPath).href
 
   const loadingTask = pdfjsLib.getDocument({
     data: new Uint8Array(buffer),
